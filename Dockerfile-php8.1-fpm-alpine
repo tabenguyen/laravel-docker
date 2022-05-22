@@ -1,7 +1,6 @@
 FROM php:8.1-fpm
 
 USER root
-# Arguments defined in docker-compose.yml 
 ARG user=php
 ARG uid=1000
 
@@ -40,8 +39,21 @@ RUN apt update && apt install -y \
     locales \
     libmemcached-dev \
     supervisor \
+    libcurl4-openssl-dev \
+    libssl-dev \
     cron
+RUN apt-get install -yqq --no-install-recommends --show-progress \
+        nginx
+    
+# Redis
+RUN pecl install redis && docker-php-ext-enable redis
 
+###########################################
+# OpenSwoole/Swoole extension
+###########################################
+RUN apt-get install -yqq --no-install-recommends --show-progress libc-ares-dev \
+      && pecl install -D 'enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="no" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"' openswoole \
+      && docker-php-ext-enable openswoole
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -59,6 +71,10 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN useradd -G www-data,root -u $uid -d /home/$user $user
 RUN mkdir -p /home/$user/.composer && \
     chown -R $user:$user /home/$user
+
+RUN useradd -G www-data,root -u $uid -d /home/octane octane
+RUN mkdir -p /home/octane/.composer && \
+    chown -R octane:octane /home/octane
 
 # Set working directory
 WORKDIR /var/www
