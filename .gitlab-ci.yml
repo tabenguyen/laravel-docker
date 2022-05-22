@@ -11,46 +11,7 @@ docker-build:
   before_script:
     - apk update && apk add git
     - git fetch origin $CI_DEFAULT_BRANCH --tags
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u tabenguyen -p b67e761c-b3db-454f-a043-a730289c9193
   script:
-    # Check if deps configuration was changes. If deps was changes, all Dockerfile will be rebuild
-    - |
-      # Build with latest Tag
-      if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
-        tag=":latest"
-        echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
-        files=$(git diff HEAD HEAD~1 --name-only | grep Dockerfile)
-      # Build with version tag
-      elif [[ "$CI_COMMIT_TAG" != "" ]]; then
-        tag=":$CI_COMMIT_TAG"
-        echo "Running on Tag '$CI_COMMIT_TAG': tag = $tag"
-        latest_tag=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1))
-        files=$(git diff $CI_COMMIT_TAG $latest_tag --name-only | grep Dockerfile)
-      # Build with branch Tag
-      else
-        tag=":$CI_COMMIT_REF_SLUG"
-        echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
-        files=$(git diff HEAD remotes/origin/$CI_DEFAULT_BRANCH --name-only | grep Dockerfile)
-      fi
-      
-      # If deps was changes, overwrite files list
-      depsChanges=$(git diff HEAD HEAD~1 --name-only | grep -E "nginx|php-fpm|supervisor")
-      echo "Deps Changes"
-      echo $depsChanges
-      if [[ $depsChanges != "" ]]; then
-        files=$(ls -1 | grep "Dockerfile")
-      fi
-      echo "Changes files: $files"
-      echo "Tag Name: $tag"
-    - |
-      for file in $files; do \
-        image_tag=$(echo $file | sed -e "s/Dockerfile-//") && \
-        echo "Create new version 「$tag」 for Image Tag: 「$image_tag」" 
-        docker build -t "$CI_REGISTRY_IMAGE${tag}-$image_tag" -f Dockerfile-$image_tag . && \
-        docker push "$CI_REGISTRY_IMAGE${tag}-$image_tag"; \
-      done
-  # Run this job in a branch where a Dockerfile exists
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^(\d+\.)?(\d+\.)?(\*|\d+)$/'
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-    - if: '$CI_COMMIT_BRANCH =~ /^feature\/.*/'
+    - docker build -t tabenguyen/laravel-php-8.1:latest -f Dockerfile-php8.1-fpm-alpine .
+    - docker push tabenguyen/laravel-php-8.1:latest
