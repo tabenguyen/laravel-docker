@@ -72,7 +72,7 @@ RUN useradd -G www-data,root -u $uid -d /home/$user $user
 RUN mkdir -p /home/$user/.composer && \
     chown -R $user:$user /home/$user
 
-RUN useradd -G www-data,root -u $uid -d /home/octane octane
+RUN useradd -G www-data,root -u 1001 -d /home/octane octane
 RUN mkdir -p /home/octane/.composer && \
     chown -R octane:octane /home/octane
 
