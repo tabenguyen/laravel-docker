@@ -1,62 +1,74 @@
-FROM php:8.1-fpm-alpine3.15
+FROM php:8.1-fpm
 
-RUN apk update
-RUN apk add --no-cache \
-    nginx \
-    icu-dev \
-    composer \
-    oniguruma-dev \
-    autoconf automake libtool nasm \
-    pcre-dev g++ gcc make sudo \
-    freetype-dev \
-    libjpeg-turbo-dev \
-    libpng-dev \
-    libzip-dev \
-    openrc supervisor rsyslog \
-    nodejs npm \
-    shadow \
-    tzdata \
+USER root
+# Arguments defined in docker-compose.yml 
+ARG user=php
+ARG uid=1000
+
+# Locales
+RUN apt update \
+	&& apt install -y locales
+
+RUN dpkg-reconfigure locales \
+	&& locale-gen C.UTF-8 \
+	&& /usr/sbin/update-locale LANG=C.UTF-8
+
+RUN echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen \
+	&& locale-gen
+
+ENV LC_ALL C.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US.UTF-8
+
+# Install system dependencies
+RUN apt update && apt install -y \
     git \
+    openssl \
+    curl \
+    libjpeg-dev \
+    zlib1g-dev \ 
+    libpng-dev \
+    libwebp-dev \
+    jpegoptim optipng pngquant gifsicle \
+    libonig-dev \
     libxml2-dev \
-    gnu-libiconv-dev \
-    oniguruma-dev
-# Fix ICONV library implementation
-# @see https://github.com/docker-library/php/issues/240
-ENV LD_PRELOAD /usr/local/lib/preloadable_libiconv.so
+    libzip-dev \
+    libbz2-dev \
+    zip \
+    unzip\
+    build-essential \
+    locales \
+    libmemcached-dev \
+    supervisor \
+    cron
 
-RUN docker-php-ext-install intl exif zip sockets mysqli pdo_mysql mbstring soap opcache
-RUN pecl install -o -f redis \
-    && rm -rf /tmp/pear \
-    && docker-php-ext-enable redis 
-RUN docker-php-ext-install fileinfo pcntl && docker-php-ext-enable opcache
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && docker-php-ext-install -j$(nproc) gd
-RUN pecl install apcu && docker-php-ext-enable apcu
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Fix ICONV library implementation
-RUN   apk add gnu-libiconv --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ --allow-untrusted;
+# Install and configure GD PHP extension
+RUN docker-php-ext-configure gd --enable-gd --with-jpeg --with-webp
+RUN docker-php-ext-install gd
 
-# Nginx Settings
-ADD ./nginx/conf.d/ /etc/nginx/conf.d/
-ADD ./nginx/nginx.conf /etc/nginx/nginx.conf
-# PHP-FPM Settings
-ADD ./php-fpm/php-fpm.d/www-data.conf /usr/local/etc/php-fpm.d/www-data.conf
-ADD ./php-fpm/php.ini /usr/local/etc/php/php.ini
+# Install other PHP extensions
+RUN docker-php-ext-install bcmath pdo_mysql exif pcntl zip bz2
+
+# Install composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Create system user to run Composer and Artisan Commands
+RUN useradd -G www-data,root -u $uid -d /home/$user $user
+RUN mkdir -p /home/$user/.composer && \
+    chown -R $user:$user /home/$user
+
+# Set working directory
+WORKDIR /var/www
+
 # Supervisor Settings
 ADD ./supervisord/supervisord.conf /etc/supervisord.conf
 ADD ./supervisord/supervisor.d/ /etc/supervisor.d/
+
 # crontab
-ADD ./cron-schedule /etc/crontabs/root
-
-RUN touch /run/php-fpm.sock
-
-RUN chown -R www-data:www-data /run/nginx
-RUN chown www-data:www-data /run/php-fpm.sock
-
-WORKDIR /app
-
-# Add XDebug Command
-# ADD xdebug.sh /usr/local/bin/xdebug
-# RUN chmod +x /usr/local/bin/xdebug
+ADD ./cron-schedule /etc/cron.d/root
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
  
