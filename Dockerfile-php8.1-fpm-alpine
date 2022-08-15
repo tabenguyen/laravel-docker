@@ -1,5 +1,8 @@
 FROM php:8.1-fpm
 
+# Set working directory
+WORKDIR /var/www
+
 USER root
 ARG user=php
 ARG uid=1000
@@ -76,8 +79,9 @@ RUN useradd -G www-data,root -u 1001 -d /home/octane octane
 RUN mkdir -p /home/octane/.composer && \
     chown -R octane:octane /home/octane
 
-# Set working directory
-WORKDIR /var/www
+# Nginx Settings
+ADD ./nginx/conf.d/ /etc/nginx/conf.d/
+ADD ./nginx/nginx.conf /etc/nginx/nginx.conf
 
 # Supervisor Settings
 ADD ./supervisord/supervisord.conf /etc/supervisord.conf
