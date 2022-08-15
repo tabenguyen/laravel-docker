@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  php_8_1:
+    image: tabenguyen/laravel-php:8.1
+    build:
+      context: .
+      dockerfile: Dockerfile-php8.1-fpm-alpine
+  php_7_4:
+    image: tabenguyen/laravel-php:7.4
+    build:
+      context: .
+      dockerfile: Dockerfile-php7.4-fpm-alpine
