@@ -11,6 +11,7 @@ Included setting:
 Modules supported
 * Redis
 * MYSQL
+* MongoDB
 
 Other configuration
 
